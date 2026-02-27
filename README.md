@@ -1,165 +1,149 @@
-# Secure_room
 
-A Room That Enforces Its Own Privacy Policy — In Hardware
+# SecureRoom
 
-ESP32 Distributed RF Transparency System
+### A Room That Enforces Its Own Privacy Policy — In Hardware
 
-📌 Overview
+Distributed Passive RF Transparency System using ESP32
 
-ConsentMesh is a distributed embedded system that detects active recording-capable devices inside a room using passive RF monitoring.
+---
 
-The system:
+## 1. Project Overview
 
-Passively listens to WiFi probe requests (802.11)
+ConsentMesh is a distributed embedded system that passively monitors radio-frequency activity inside a room and makes the presence of recording-capable devices visible in real time.
 
-Scans Bluetooth Low Energy advertisements
+The system does not block, jam, or interfere with any signals.
+It only observes publicly emitted RF behavior and displays anonymized device states on a shared screen.
 
-Infers behavioral device states
+The objective is to create transparency in confidential environments such as:
 
-Aggregates results across multiple ESP32 nodes
+* Boardrooms
+* Therapy offices
+* Legal consultation rooms
+* Research labs
+* Government spaces
 
-Displays real-time device activity on a public screen
+The room becomes a neutral enforcer of its own privacy policy.
 
-No signals are blocked.
-No personal data is stored.
-The room simply makes active recording visible.
+---
 
-🎯 Objective
+## 2. Core Principles
 
-Create a passive transparency layer for confidential environments:
+* Passive RF monitoring only
+* No signal jamming
+* No packet injection
+* No personal identification
+* No persistent personal data storage
+* Behavioral detection instead of identity tracking
 
-Detect devices entering a room
+This is counter-surveillance through transparency.
 
-Infer screen activity
+---
 
-Detect high transmission bursts
+## 3. System Architecture
 
-Flag possible recording behavior
+ConsentMesh consists of three layers:
 
-Display device states publicly in real time
-
-🏗 System Architecture
-1️⃣ Distributed Nodes (5x ESP32)
+### 3.1 Detection Nodes (ESP32 Mesh)
 
 Each node:
 
-Runs WiFi in promiscuous mode
+* Runs WiFi in promiscuous mode
+* Captures 802.11 probe requests and data frames
+* Scans BLE advertisements
+* Extracts RSSI and frame metadata
+* Performs local behavioral inference
+* Shares sightings with other nodes
 
-Captures probe requests and data frames
+Recommended deployment: 4–5 nodes placed in room corners.
 
-Scans BLE advertisements
+---
 
-Performs local behavioral inference
+### 3.2 Mesh Aggregation Layer
 
-Sends sightings to mesh network
+Communication protocol: ESP-NOW
 
-2️⃣ Mesh Layer (ESP-NOW)
+Responsibilities:
 
-Nodes exchange device sightings
+* Exchange device sightings
+* Confirm presence using multi-node detection
+* Apply consensus logic
+* Reduce false positives
+* Synchronize device states
 
-Multi-node confirmation reduces false positives
+---
 
-Simple consensus mechanism determines device state
+### 3.3 Public Dashboard
 
-3️⃣ Public Dashboard
+Displays in real time:
 
-Displays:
+* Number of detected devices
+* Behavioral state per device
+* Transmission intensity indicators
+* Possible recording flags
 
-Number of devices detected
+No MAC addresses are shown.
+Only anonymized device states are displayed.
 
-Device behavioral state
+---
 
-Screen activity indicators
+## 4. Behavioral State Model
 
-Transmission bursts
+Each detected device transitions between states based on RF activity patterns.
 
-Possible recording flags
+### States
 
-No MAC addresses displayed.
-Only anonymized device states.
+* PRESENT
+* SCREEN_ACTIVE
+* TRANSMITTING
+* POSSIBLE_RECORDING
 
-🔍 Behavioral States
+### Inference Based On
 
-Each detected device transitions between:
+* Probe request frequency
+* Data burst rate
+* RSSI persistence
+* BLE advertisement interval
+* Multi-node confirmation
 
-PRESENT
+The system performs behavioral inference — not identification.
 
-SCREEN_ACTIVE
+---
 
-TRANSMITTING
+## 5. Hardware Requirements
 
-POSSIBLE_RECORDING
+| Component                              | Quantity |
+| -------------------------------------- | -------- |
+| ESP32 DevKit V1                        | 5        |
+| OLED SSD1306 (0.96")                   | 5        |
+| Public Display (Laptop / HDMI Monitor) | 1        |
+| USB Power Banks                        | 5        |
+| Micro USB cables                       | 5        |
 
-State transitions are based on:
+Estimated total cost: ~100 euros
 
-Probe request frequency
+---
 
-RSSI stability
+## 6. Software Stack
 
-Data burst rate
+### Firmware (ESP32)
 
-BLE advertisement interval
+* Arduino Framework
+* WiFi Promiscuous Mode API
+* BLE scanning API
+* ESP-NOW mesh communication
+* Finite State Machine logic
 
-Multi-node confirmation
+### Dashboard
 
-🧠 Technical Stack
-Hardware
+* Python (serial parser)
+* Lightweight UI (Tkinter / Web UI optional)
 
-5x ESP32 DevKit V1
+---
 
-5x OLED SSD1306
+## 7. Repository Structure
 
-1 Public Display (Laptop / HDMI screen)
-
-USB power banks
-
-Software
-
-C / C++ (Arduino framework)
-
-ESP32 WiFi promiscuous mode
-
-BLE scanning
-
-ESP-NOW mesh protocol
-
-Lightweight state machine
-
-Serial-to-dashboard communication
-
-📊 Demo Scenario
-
-Room empty → Dashboard shows 0 devices
-
-Phone enters pocket → Device appears (PRESENT)
-
-Phone unlocked → State updates (SCREEN_ACTIVE)
-
-Recorder app opened → RF burst detected (POSSIBLE_RECORDING)
-
-Phone locked → Flag clears
-
-Room empty → List clears
-
-⚖ Ethical Design Principles
-
-No signal jamming
-
-No device blocking
-
-No packet injection
-
-No personal identification
-
-No persistent storage
-
-Pure transparency
-
-This is counter-surveillance, not surveillance.
-
-🛠 Project Structure
 ```
-SecureRoom/
+ConsentMesh/
 │
 ├── firmware/
 │   ├── node/
@@ -171,25 +155,152 @@ SecureRoom/
 │   │
 │   └── dashboard/
 │       ├── parser.py
-│       └── display_ui.py
+│       ├── display.py
+│       └── requirements.txt
 │
 ├── documentation/
-│   ├── cahier_des_charges.pdf
-│   ├── architecture.png
-│   └── demo_script.md
+│   ├── architecture_diagram.png
+│   ├── state_machine.png
+│   └── cahier_des_charges.pdf
 │
 └── README.md
 ```
-🚀 What You Learn
 
-802.11 frame structure
+---
 
-BLE advertisement parsing
+## 8. Installation & Setup
 
-ESP32 promiscuous mode
+### 8.1 Flashing ESP32 Nodes
 
-Behavioral inference modeling
+1. Install Arduino IDE
+2. Add ESP32 board package
+3. Upload firmware from `firmware/node/`
+4. Configure unique node IDs
+5. Power using USB power banks
 
-Distributed consensus logic
+---
 
-Privacy-by-design system architecture
+### 8.2 Running Dashboard
+
+1. Connect main node to laptop via USB
+2. Install Python dependencies
+3. Run:
+
+```
+python display.py
+```
+
+The dashboard will display live device activity.
+
+---
+
+## 9. Development Phases
+
+### Phase 1 – RF Capture Validation
+
+* Enable promiscuous mode
+* Count probe requests
+* Display device presence locally
+
+### Phase 2 – Behavioral Detection
+
+* Measure probe frequency
+* Detect screen-on patterns
+* Define transmission burst thresholds
+
+### Phase 3 – BLE Integration
+
+* Scan BLE advertisements
+* Merge WiFi and BLE sightings
+
+### Phase 4 – Mesh Communication
+
+* Implement ESP-NOW
+* Share device sightings
+* Add multi-node confirmation
+
+### Phase 5 – Dashboard Integration
+
+* Serialize device state
+* Build live public UI
+
+### Phase 6 – Calibration & Testing
+
+* Phone in pocket
+* Phone unlocked
+* Voice recorder app
+* Video recording app
+* Multiple devices simultaneously
+
+---
+
+## 10. Technical Challenges
+
+* MAC address randomization
+* RF noise interference
+* False positive reduction
+* RSSI fluctuation filtering
+* Behavioral threshold tuning
+
+Mitigation strategy:
+Use state persistence and multi-node consensus instead of single-event detection.
+
+---
+
+## 11. Limitations
+
+* Cannot detect offline recording devices with no RF emission
+* Cannot identify device owner
+* Detection is probabilistic, not absolute
+* Modern MAC randomization reduces tracking reliability
+
+The product goal is transparency, not forensic precision.
+
+---
+
+## 12. Ethical and Legal Considerations
+
+ConsentMesh:
+
+* Does not interfere with communication
+* Does not decrypt traffic
+* Does not log personal data
+* Does not identify individuals
+
+It only observes publicly emitted RF metadata.
+
+Deployment should comply with local RF monitoring regulations.
+
+---
+
+## 13. Educational Value
+
+This project provides hands-on experience in:
+
+* 802.11 frame analysis
+* BLE advertisement parsing
+* Embedded systems design
+* Distributed consensus logic
+* Privacy-by-design architecture
+* RF signal behavior analysis
+
+---
+
+## 14. Future Improvements
+
+* Advanced statistical inference
+* Machine learning behavioral classification
+* Web-based dashboard
+* Audit log generation
+* Encrypted event storage
+* Consent terminal mode at room entrance
+
+---
+
+## 15. License
+
+This project is developed for academic purposes.
+Further commercialization requires regulatory analysis.
+
+---
+
