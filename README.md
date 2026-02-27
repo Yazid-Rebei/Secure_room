@@ -158,7 +158,8 @@ Pure transparency
 This is counter-surveillance, not surveillance.
 
 🛠 Project Structure
-ConsentMesh/
+```
+SecureRoom/
 │
 ├── firmware/
 │   ├── node/
@@ -178,6 +179,7 @@ ConsentMesh/
 │   └── demo_script.md
 │
 └── README.md
+```
 🚀 What You Learn
 
 802.11 frame structure
