@@ -1,306 +1,297 @@
+# ConsentMesh
 
-# SecureRoom
+> **Un maillage auto-surveillant de nœuds ESP32 qui rend l'activité sans fil d'une salle visible — publiquement, en continu, et automatiquement.**
 
-### A Room That Enforces Its Own Privacy Policy — In Hardware
+## Présentation
 
-Distributed Passive RF Transparency System using ESP32
+**ConsentMesh** est un système embarqué distribué de sensibilisation à la confidentialité. Il observe l'environnement sans fil d'une salle à l'aide d'un maillage de nœuds ESP32, établit un consensus sur l'activité détectée, apprend ce qui est normal, et rend l'invisible visible via un affichage public.
 
----
+### Ce que le système fait
 
-## 1. Project Overview
+- 📡 Observe l'activité RF passive (Wi-Fi 802.11 + Bluetooth) sans lire le contenu des trames
+- 🤝 Agrège les données par consensus Byzantine-résilient pour garantir la fiabilité
+- 🧠 Détecte les anomalies comportementales par apprentissage automatique (IsolationForest)
+- 🖥️ Affiche l'état en temps réel sur un écran HDMI public et un bandeau LED WS2812B
 
-ConsentMesh is a distributed embedded system that passively monitors radio-frequency activity inside a room and makes the presence of recording-capable devices visible in real time.
+### Ce que le système n'est PAS
 
-The system does not block, jam, or interfere with any signals.
-It only observes publicly emitted RF behavior and displays anonymized device states on a shared screen.
-
-The objective is to create transparency in confidential environments such as:
-
-* Boardrooms
-* Therapy offices
-* Legal consultation rooms
-* Research labs
-* Government spaces
-
-The room becomes a neutral enforcer of its own privacy policy.
-
----
-
-## 2. Core Principles
-
-* Passive RF monitoring only
-* No signal jamming
-* No packet injection
-* No personal identification
-* No persistent personal data storage
-* Behavioral detection instead of identity tracking
-
-This is counter-surveillance through transparency.
+| ❌ Ce n'est pas... | ✅ Mais c'est... |
+|---|---|
+| Un brouilleur de signal | Un observateur passif non-intrusif |
+| Un système de surveillance | Un outil de contre-surveillance |
+| Un détecteur d'enregistrement certifié | Un détecteur d'anomalies comportementales |
+| Un système de stockage | Entièrement éphémère (aucune donnée conservée) |
+| Connecté au cloud | 100% local, traitement dans la salle |
 
 ---
 
-## 3. System Architecture
+## Architecture du système
 
-ConsentMesh consists of three layers:
+### Vue d'ensemble des couches
 
-### 3.1 Detection Nodes (ESP32 Mesh)
+```
+┌────────────────────────────────────────────────────┐
+│         COUCHE 4 — Sortie publique                 │
+│     Affichage HDMI + Bandeau LED WS2812B           │
+├────────────────────────────────────────────────────┤
+│         COUCHE 3 — Détection d'anomalies ML        │
+│     Modèle IsolationForest sur Raspberry Pi        │
+├────────────────────────────────────────────────────┤
+│         COUCHE 2 — Consensus Byzantine-Résilient   │
+│     Agrégation médiane + détection de défaillances │
+├────────────────────────────────────────────────────┤
+│         COUCHE 1 — Observation RF Passive          │
+│     4 nœuds ESP32 en mode moniteur 802.11 passif   │
+└────────────────────────────────────────────────────┘
+```
 
-Each node:
+### Topologie du maillage
 
-* Runs WiFi in promiscuous mode
-* Captures 802.11 probe requests and data frames
-* Scans BLE advertisements
-* Extracts RSSI and frame metadata
-* Performs local behavioral inference
-* Shares sightings with other nodes
+```
+Nœud 1 (ESP32) ──┐
+                  │  ESP-NOW
+Nœud 2 (ESP32) ──┤           ┌──────────────┐     UART      ┌─────────────────┐
+                  ├──────────►│ Nœud Pont    ├──────────────►│  Raspberry Pi   │
+Nœud 3 (ESP32) ──┤           │  (ESP32)     │               │  (Agrégation +  │
+                  │  ESP-NOW  └──────────────┘               │   ML + Display) │
+Nœud 4 (ESP32) ──┘                                          └─────────────────┘
+                                                                      │
+                                                           ┌──────────┴──────────┐
+                                                      HDMI │               GPIO  │
+                                                    ┌──────┴───┐      ┌──────────┴──┐
+                                                    │ Moniteur │      │ Bandeau LED │
+                                                    └──────────┘      └─────────────┘
+```
 
-Recommended deployment: 4–5 nodes placed in room corners.
+### Pipeline de données
 
----
-
-### 3.2 Mesh Aggregation Layer
-
-Communication protocol: ESP-NOW
-
-Responsibilities:
-
-* Exchange device sightings
-* Confirm presence using multi-node detection
-* Apply consensus logic
-* Reduce false positives
-* Synchronize device states
-
----
-
-### 3.3 Public Dashboard
-
-Displays in real time:
-
-* Number of detected devices
-* Behavioral state per device
-* Transmission intensity indicators
-* Possible recording flags
-
-No MAC addresses are shown.
-Only anonymized device states are displayed.
-
----
-
-## 4. Behavioral State Model
-
-Each detected device transitions between states based on RF activity patterns.
-
-### States
-
-* PRESENT
-* SCREEN_ACTIVE
-* TRANSMITTING
-* POSSIBLE_RECORDING
-
-### Inference Based On
-
-* Probe request frequency
-* Data burst rate
-* RSSI persistence
-* BLE advertisement interval
-* Multi-node confirmation
-
-The system performs behavioral inference — not identification.
+```
+[ESP32 — Mode Moniteur Passif]
+        │
+        ▼
+[Calcul du Vecteur d'Activité] (toutes les 3 secondes)
+        │
+        ▼
+[Diffusion ESP-NOW entre pairs]
+        │
+        ▼
+[Nœud Pont → Raspberry Pi via UART 115200 baud]
+        │
+        ▼
+[Consensus Byzantine-Résilient — médiane + scoring de déviation]
+        │
+        ▼
+[Inférence ML — IsolationForest → Score d'Anomalie ∈ [0, 1]]
+        │
+        ▼
+[Sorties : Affichage HDMI + Bandeau LED WS2812B]
+```
 
 ---
 
-## 5. Hardware Requirements
-
-| Component                              | Quantity |
-| -------------------------------------- | -------- |
-| ESP32 DevKit V1                        | 5        |
-| OLED SSD1306 (0.96")                   | 5        |
-| Public Display (Laptop / HDMI Monitor) | 1        |
-| USB Power Banks                        | 5        |
-| Micro USB cables                       | 5        |
-
-Estimated total cost: ~100 euros
-
----
-
-## 6. Software Stack
-
-### Firmware (ESP32)
-
-* Arduino Framework
-* WiFi Promiscuous Mode API
-* BLE scanning API
-* ESP-NOW mesh communication
-* Finite State Machine logic
-
-### Dashboard
-
-* Python (serial parser)
-* Lightweight UI (Tkinter / Web UI optional)
-
----
-
-## 7. Repository Structure
+## Structure des fichiers
 
 ```
 ConsentMesh/
 │
-├── firmware/
-│   ├── node/
-│   │   ├── capture.cpp
-│   │   ├── ble_scan.cpp
-│   │   ├── state_machine.cpp
-│   │   ├── mesh_comm.cpp
-│   │   └── main.ino
+├── README.md                          ← Ce fichier
+├── .gitignore
+│
+├── docs/                              ← Documentation du projet
+│   ├── ConsentMesh_v4_CDC.pdf         ← Cahier des charges technique
+│   ├── architecture.md                ← Diagrammes d'architecture détaillés
+│   ├── calibration.md                 ← Procédure de calibration de salle
+│   └── demo_guide.md                  ← Guide de démonstration jury
+│
+├── hardware/                          ← Schémas et listes de matériel
+│   ├── BOM.md                         ← Bill of Materials (liste complète)
+│   ├── wiring_diagram.md              ← Schéma de câblage général
+│   ├── node_corner.md                 ← Câblage nœud de détection (ESP32 + PIR + OLED)
+│   └── node_bridge.md                 ← Câblage nœud pont
+│
+├── firmware/                          ← Code embarqué ESP32 (C/C++)
 │   │
-│   └── dashboard/
-│       ├── parser.py
-│       ├── display.py
-│       └── requirements.txt
+│   ├── node_detection/                ← [Membre #1] Nœuds de détection (×4)
+│   │   ├── node_detection.ino         ← Point d'entrée principal
+│   │   ├── wifi_monitor.cpp           ← Mode moniteur 802.11 passif
+│   │   ├── wifi_monitor.h
+│   │   ├── bt_scanner.cpp             ← Scan Bluetooth passif
+│   │   ├── bt_scanner.h
+│   │   ├── activity_vector.cpp        ← Calcul du Vecteur d'Activité
+│   │   ├── activity_vector.h
+│   │   ├── mac_fingerprint.cpp        ← Contournement randomisation MAC
+│   │   ├── mac_fingerprint.h
+│   │   ├── pir_sensor.cpp             ← Gestion capteur PIR HC-SR501
+│   │   ├── pir_sensor.h
+│   │   ├── oled_display.cpp           ← Affichage OLED SSD1306 (santé nœud)
+│   │   ├── oled_display.h
+│   │   └── config.h                   ← Paramètres (ID nœud, canaux, seuils)
+│   │
+│   └── node_bridge/                   ← [Membre #2] Nœud pont + maillage ESP-NOW
+│       ├── node_bridge.ino            ← Point d'entrée principal
+│       ├── espnow_mesh.cpp            ← Protocole maillage ESP-NOW pair-à-pair
+│       ├── espnow_mesh.h
+│       ├── serial_bridge.cpp          ← Transmission UART vers Raspberry Pi
+│       ├── serial_bridge.h
+│       └── config.h                   ← Paramètres (adresses MAC pairs, baud rate)
 │
-├── documentation/
-│   ├── architecture_diagram.png
-│   ├── state_machine.png
-│   └── cahier_des_charges.pdf
+├── raspberry/                         ← Code Raspberry Pi (Python 3.10+)
+│   │
+│   ├── main.py                        ← Point d'entrée — orchestrateur principal
+│   │
+│   ├── consensus/                     ← [Membre #3] Consensus Byzantine-Résilient
+│   │   ├── __init__.py
+│   │   ├── aggregator.py              ← Agrégation médiane multi-nœuds
+│   │   ├── deviation_scorer.py        ← Scoring de déviation par nœud
+│   │   └── fault_detector.py          ← Quarantaine des nœuds défaillants
+│   │
+│   ├── ml/                            ← [Membre #3] Pipeline ML
+│   │   ├── __init__.py
+│   │   ├── inference.py               ← Inférence temps réel IsolationForest
+│   │   ├── baseline_updater.py        ← Mise à jour incrémentale de la référence
+│   │   └── models/
+│   │       └── isolation_forest.pkl   ← Modèle entraîné (≤ 20 Mo)
+│   │
+│   ├── serial_reader/                 ← Lecture UART depuis nœud pont
+│   │   ├── __init__.py
+│   │   └── reader.py                  ← Désérialisation des Vecteurs d'Activité
+│   │
+│   ├── display/                       ← [Membre #4] Affichage public HDMI
+│   │   ├── __init__.py
+│   │   ├── public_screen.py           ← Interface Pygame/Tkinter
+│   │   └── assets/
+│   │       └── fonts/                 ← Polices d'affichage
+│   │
+│   ├── led/                           ← [Membre #4] Contrôle bandeau LED
+│   │   ├── __init__.py
+│   │   └── led_controller.py          ← GPIO WS2812B (vert / ambre / rouge)
+│   │
+│   ├── door_sensor/                   ← [Membre #4] Capteur de porte
+│   │   ├── __init__.py
+│   │   └── door_sensor.py             ← Détection ouverture/fermeture porte
+│   │
+│   └── config.py                      ← Configuration globale (seuils, ports, pins)
 │
-└── README.md
+├── training/                          ← Entraînement ML (sur PC portable)
+│   ├── data/
+│   │   ├── baseline_raw.csv           ← Données brutes collectées en salle vide
+│   │   └── sessions/                  ← Données de sessions annotées
+│   ├── notebooks/
+│   │   ├── 01_exploration.ipynb       ← Analyse exploratoire des données
+│   │   ├── 02_training.ipynb          ← Entraînement IsolationForest
+│   │   └── 03_evaluation.ipynb        ← Évaluation et choix des seuils
+│   └── export_model.py                ← Export du modèle vers raspberry/ml/models/
+│
+├── scripts/                           ← Scripts utilitaires
+│   ├── flash_nodes.sh                 ← Flash firmware sur tous les ESP32
+│   ├── collect_baseline.py            ← Collecte de données de référence en salle
+│   ├── calibrate_room.py              ← Calibration RSSI périmètre de salle
+│   └── system_status.py               ← Vérification santé du système complet
+│
+└── tests/                             ← Tests et validation
+    ├── test_consensus.py              ← Tests unitaires algorithme Byzantine
+    ├── test_ml_inference.py           ← Tests pipeline ML
+    ├── test_led_controller.py         ← Tests contrôleur LED
+    └── simulate_node_failure.py       ← Simulation de panne de nœud
 ```
 
 ---
 
-## 8. Installation & Setup
+## Matériel requis
 
-### 8.1 Flashing ESP32 Nodes
-
-1. Install Arduino IDE
-2. Add ESP32 board package
-3. Upload firmware from `firmware/node/`
-4. Configure unique node IDs
-5. Power using USB power banks
-
----
-
-### 8.2 Running Dashboard
-
-1. Connect main node to laptop via USB
-2. Install Python dependencies
-3. Run:
+### Liste complète (BOM)
+```
+| Composant | Qté | Rôle | Coût estimé (USD) |
+|---|---|---|---|
+| ESP32-WROOM-32 Dev Board | 5 | 4 nœuds détection + 1 pont | 5–8 / u |
+| Raspberry Pi Zero 2W | 1 | Agrégation, ML, affichage | ~15 |
+| MicroSD 16 Go+ | 1 | OS Raspberry Pi + code | ~5 |
+| PIR HC-SR501 | 4 | Détection d'occupation | 1–2 / u |
+| Capteur magnétique de porte | 1 | Détection d'entrée | 2–4 |
+| Bandeau LED WS2812B 1m (60 LED) | 1 | Indicateur d'activité principal | 8–12 |
+| OLED SSD1306 0,96" I2C | 4 | Santé par nœud | 2–3 / u |
+| Moniteur HDMI | 1 | Affichage public | prêté |
+| Adaptateur Mini HDMI → HDMI | 1 | Pi Zero vers moniteur | 3–5 |
+| Banque USB 10 000 mAh+ | 4 | Nœuds coins sans fil | 10–15 / u |
+| Adaptateur secteur USB 5V 2A | 1 | Nœud d'agrégation | ~5 |
+| Alimentation 5V 2A (bandeau LED) | 1 | Bandeau LED | 5–8 |
+| Câbles Micro-USB / USB-C | 5 | Alimentation générale | 2–3 / u |
+| Pack fils de liaison | 1 | Connexions GPIO | ~5 |
+| Breadboards demi-taille | 4 | Prototypage capteurs | 2–3 / u |
+| Résistance 470Ω | 1 | Protection données LED | <1 |
+| Condensateur 1000 µF | 1 | Lissage alimentation LED | <1 |
+| Fil 22AWG (1 rouleau) | 1 | Câblage capteur de porte | 3–5 |
+| Boîtiers imprimés 3D | 4 | Protection nœuds coins | 3–8 / u |
+| Bandes velcro / adhésif | 1 pack | Fixation aux murs | 3–5 |
+| Colliers de câbles | 1 pack | Gestion des câbles | ~2 |
 
 ```
-python display.py
+
+---
+
+
+### 5. Entraînement du modèle ML
+
+```bash
+cd training/
+# Lancer Jupyter pour exécuter les notebooks dans l'ordre
+jupyter notebook
+
+# Ou directement depuis le terminal :
+python3 export_model.py --input data/baseline_raw.csv \
+                        --output ../raspberry/ml/models/isolation_forest.pkl
 ```
 
-The dashboard will display live device activity.
+---
+
+
+## Utilisation
+
+### Indicateurs de l'affichage public (HDMI)
+```
+| Indicateur | Description |
+|---|---|
+| **Sources actives** | Nombre de sources de transmission détectées par consensus |
+| **Niveau d'activité** | Inactif / Actif / Élevé (piloté par le Score d'Anomalie ML) |
+| **Indicateurs comportementaux** | Signaux lors de transmission continue anormale |
+| **Santé du maillage** | Nœuds actifs / Nœuds signalés défaillants |
+| **Durée de session** | Temps écoulé depuis le début de l'activité détectée |
+
+### Signification du bandeau LED
+
+| Couleur | État | Signification |
+|---|---|---|
+| 🟢 **Vert** | Inactif | Appareils présents, activité minimale |
+| 🟡 **Ambre** | Actif | Comportement normal d'utilisation |
+| 🔴 **Rouge** | Élevé | Un ou plusieurs appareils anormaux détectés |
+
+> Le bandeau et l'affichage se **réinitialisent automatiquement** lorsque la salle est détectée vide. Aucun historique n'est conservé.
+
+### Vérification de l'état du système
+
+```bash
+python3 scripts/system_status.py
+```
 
 ---
 
-## 9. Development Phases
+## Membre Responsabilités
+```
+#1 Firmware ESP32 nœuds de détection — mode moniteur,
+extraction de Vecteur d’Activité, randomisation MAC
+#2 Firmware ESP32 maillage ESP-NOW — diffusion
+pair-à-pair, nœud pont, protocole série vers Pi
+#3 Raspberry Pi — algorithme de consensus
+Byzantine-résilient, pipeline ML, inférence en temps réel
+#4 Affichage public, contrôle bandeau LED, intégration
+système, calibration de salle, démonstration
+```
 
-### Phase 1 – RF Capture Validation
 
-* Enable promiscuous mode
-* Count probe requests
-* Display device presence locally
+## Équipe
+Miled Trabelsi
+Houssem Khouja
+Mohamed Yazid Rebai
+Selim Hamdi
 
-### Phase 2 – Behavioral Detection
-
-* Measure probe frequency
-* Detect screen-on patterns
-* Define transmission burst thresholds
-
-### Phase 3 – BLE Integration
-
-* Scan BLE advertisements
-* Merge WiFi and BLE sightings
-
-### Phase 4 – Mesh Communication
-
-* Implement ESP-NOW
-* Share device sightings
-* Add multi-node confirmation
-
-### Phase 5 – Dashboard Integration
-
-* Serialize device state
-* Build live public UI
-
-### Phase 6 – Calibration & Testing
-
-* Phone in pocket
-* Phone unlocked
-* Voice recorder app
-* Video recording app
-* Multiple devices simultaneously
-
----
-
-## 10. Technical Challenges
-
-* MAC address randomization
-* RF noise interference
-* False positive reduction
-* RSSI fluctuation filtering
-* Behavioral threshold tuning
-
-Mitigation strategy:
-Use state persistence and multi-node consensus instead of single-event detection.
-
----
-
-## 11. Limitations
-
-* Cannot detect offline recording devices with no RF emission
-* Cannot identify device owner
-* Detection is probabilistic, not absolute
-* Modern MAC randomization reduces tracking reliability
-
-The product goal is transparency, not forensic precision.
-
----
-
-## 12. Ethical and Legal Considerations
-
-ConsentMesh:
-
-* Does not interfere with communication
-* Does not decrypt traffic
-* Does not log personal data
-* Does not identify individuals
-
-It only observes publicly emitted RF metadata.
-
-Deployment should comply with local RF monitoring regulations.
-
----
-
-## 13. Educational Value
-
-This project provides hands-on experience in:
-
-* 802.11 frame analysis
-* BLE advertisement parsing
-* Embedded systems design
-* Distributed consensus logic
-* Privacy-by-design architecture
-* RF signal behavior analysis
-
----
-
-## 14. Future Improvements
-
-* Advanced statistical inference
-* Machine learning behavioral classification
-* Web-based dashboard
-* Audit log generation
-* Encrypted event storage
-* Consent terminal mode at room entrance
-
----
-
-## 15. License
-
-This project is developed for academic purposes.
-Further commercialization requires regulatory analysis.
-
----
-
+> *ConsentMesh v4 — Maillage ESP32 — Capteurs PIR et porte — Consensus Byzantine-Résilient — Détection d'anomalies ML embarquée — Éphémère, Transparent, Auto-surveillant*
